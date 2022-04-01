@@ -6,88 +6,86 @@ const BarChart = () => {
         main();
     });
     const main = () => {
-        const canvas = document.getElementById('barChart');
-        if (!canvas) {
-            console.log('failed to get canvas');
-        }
-        let gl = getWebGLContext(canvas);
-        if (!gl) {
-            console.log('failed to get webGL context');
-        }
-        if (!initShaders(gl, ambientLight.vShader, ambientLight.fShader)) {
-            console.log('failed to initialize shader');
-        }
-        let n = initVertexBuffers(gl);
+        var canvas = document.getElementById('barChart');
 
+        // Get the rendering context for WebGL
+        var gl = getWebGLContext(canvas);
+        if (!gl) {
+            console.log('Failed to get the rendering context for WebGL');
+            return;
+        }
+
+        // Initialize shaders
+        if (!initShaders(gl, ambientLight.vShader, ambientLight.fShader)) {
+            console.log('Failed to intialize shaders.');
+            return;
+        }
+
+        // 
+        var n = initVertexBuffers(gl);
         if (n < 0) {
-            console.log('Failed to initialize buffers');
+            console.log('Failed to set the vertex information');
             return;
         }
 
         // Set the clear color and enable the depth test
-        gl.clearColor(0, 0, 0, 1);
+        gl.clearColor(1, 1, 1, 0);
         gl.enable(gl.DEPTH_TEST);
-        // Get the storage locations of uniform letiables and so on
-        let u_mvpMatrix = gl.getUniformLocation(gl.program, 'u_mvpMatrix');
-        let u_normalMatrix = gl.getUniformLocation(gl.program, 'u_normalMatrix');
-        let u_LightDir = gl.getUniformLocation(gl.program, 'u_LightDir');
-        if (!u_mvpMatrix || !u_normalMatrix || !u_LightDir) {
+
+        // Get the storage locations of uniform variables and so on
+        var u_MvpMatrix = gl.getUniformLocation(gl.program, 'u_MvpMatrix');
+        var u_DiffuseLight = gl.getUniformLocation(gl.program, 'u_DiffuseLight');
+        var u_LightDirection = gl.getUniformLocation(gl.program, 'u_LightDirection');
+        var u_AmbientLight = gl.getUniformLocation(gl.program, 'u_AmbientLight');
+        if (!u_MvpMatrix || !u_DiffuseLight || !u_LightDirection || !u_AmbientLight) {
             console.log('Failed to get the storage location');
             return;
         }
 
-        // Set the viewing volume
-        let viewMatrix = new Matrix4!(null);   // View matrix
-        let mvpMatrix = new Matrix4!(null);    // Model view projection matrix
-        let mvMatrix = new Matrix4!(null);     // Model matrix
-        let normalMatrix = new Matrix4!(null); // Transformation matrix for normals
-        if (!viewMatrix || !mvpMatrix || !mvMatrix || !normalMatrix) {
-            console.error("matrix4 create error");
-            return;
-        }
-        // Calculate the view matrix
-        viewMatrix.setLookAt(0, 3, 10, 0, 0, 0, 0, 1, 0);
-        mvMatrix.set(viewMatrix)!.rotate(60, 0, 1, 0); // Rotate 60 degree around the y-axis
-        // Calculate the model view projection matrix
+        // Set the light color (white)
+        gl.uniform3f(u_DiffuseLight, 1.0, 1.0, 1.0);
+        // Set the light direction (in the world coordinate)
+        var lightDirection = new Vector3([0.5, 3.0, 4.0]);
+        lightDirection.normalize();     // Normalize
+        gl.uniform3fv(u_LightDirection, lightDirection.elements);
+        // Set the ambient light
+        gl.uniform3f(u_AmbientLight, 0.2, 0.2, 0.2);
+
+        // Calculate the view projection matrix
+        var mvpMatrix = new Matrix4(null);  // Model view projection matrix
         mvpMatrix.setPerspective(30, 1, 1, 100);
-        mvpMatrix.multiply(mvMatrix);
-        // Calculate the matrix to transform the normal based on the model matrix
-        normalMatrix.setInverseOf(mvMatrix);
-        normalMatrix.transpose();
-
-        // Pass the model view matrix to u_mvpMatrix
-        gl!.uniformMatrix4fv(u_mvpMatrix, false, mvpMatrix.elements);
-
-        // Pass the normal matrixu_normalMatrix
-        gl!.uniformMatrix4fv(u_normalMatrix, false, normalMatrix.elements);
-
-        // Pass the direction of the diffuse light(world coordinate, normalized)
-        let lightDir = new Vector3([1.0, 1.0, 1.0]);
-        lightDir.normalize();     // Normalize
-        let lightDir_eye = viewMatrix.multiplyVector3(lightDir); // Transform to view coordinate
-        lightDir_eye.normalize(); // Normalize
-        gl!.uniform3fv(u_LightDir, lightDir_eye.elements);
+        mvpMatrix.lookAt(3, 3, 7, 0, 0, 0, 0, 1, 0);
+        // Pass the model view projection matrix to the variable u_MvpMatrix
+        gl.uniformMatrix4fv(u_MvpMatrix, false, mvpMatrix.elements);
 
         // Clear color and depth buffer
-        gl!.clear(gl!.COLOR_BUFFER_BIT | gl!.DEPTH_BUFFER_BIT);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
         // Draw the cube
-        gl!.drawElements(gl!.TRIANGLES, (n as any), gl!.UNSIGNED_BYTE, 0);
-
+        gl.drawElements(gl.TRIANGLES, n, gl.UNSIGNED_BYTE, 0);
     }
 
-    const initVertexBuffers = (gl: any) => {
-        let vertices = new Float32Array([
-            1.0, 1.0, 1.0, -1.0, 1.0, 1.0, -1.0, -1.0, 1.0, 1.0, -1.0, 1.0, // v0-v1-v2-v3 front
-            1.0, 1.0, 1.0, 1.0, -1.0, 1.0, 1.0, -1.0, -1.0, 1.0, 1.0, -1.0, // v0-v3-v4-v5 right
-            1.0, 1.0, 1.0, 1.0, 1.0, -1.0, -1.0, 1.0, -1.0, -1.0, 1.0, 1.0, // v0-v5-v6-v1 up
-            -1.0, 1.0, 1.0, -1.0, 1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, 1.0, // v1-v6-v7-v2 left
-            -1.0, -1.0, -1.0, 1.0, -1.0, -1.0, 1.0, -1.0, 1.0, -1.0, -1.0, 1.0, // v7-v4-v3-v2 down
-            1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, 1.0, -1.0, 1.0, 1.0, -1.0  // v4-v7-v6-v5 back
+    function initVertexBuffers(gl: { bindBuffer: (arg0: any, arg1: null) => void; ARRAY_BUFFER: any; createBuffer: () => any; ELEMENT_ARRAY_BUFFER: any; bufferData: (arg0: any, arg1: Uint8Array, arg2: any) => void; STATIC_DRAW: any; }) {
+        // Create a cube
+        //    v6----- v5
+        //   /|      /|
+        //  v1------v0|
+        //  | |     | |
+        //  | |v7---|-|v4
+        //  |/      |/
+        //  v2------v3
+        // Coordinates
+        var vertices = new Float32Array([
+            0.5, 1.0, 0.5, 0.0, 1.0,  0.5, 0.0, -1.0, 0.5, 0.5, -1.0, 0.5,// v0-v1-v2-v3 front
+            0.5, 1.0, 0.5, 0.5, -1.0, 0.5, 0.5, -1.0, 0.0, 0.5, 1.0, 0.0, // v0-v3-v4-v5 right
+            0.5, 1.0, 0.5, 0.5, 1.0, 0.0, 0.0, 1.0, 0.0,  0.0, 1.0,  0.5, // v0-v5-v6-v1 up
+            0.0, 1.0, 0.5, 0.0, 1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.5, // v1-v6-v7-v2 left
+            0.0, -1.0, 0.0, 0.5, -1.0, 0.0, 0.5, -1.0, 0.5, 0.0, -1.0, 0.5, // v7-v4-v3-v2 down
+            0.5, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, 1.0, 0.0, 0.5, 1.0, 0.0,  // v4-v7-v6-v5 back
         ]);
 
         // Colors
-        let colors = new Float32Array([
+        var colors = new Float32Array([
             1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0,     // v0-v1-v2-v3 front
             1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0,     // v0-v3-v4-v5 right
             1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0,     // v0-v5-v6-v1 up
@@ -97,7 +95,7 @@ const BarChart = () => {
         ]);
 
         // Normal
-        let normals = new Float32Array([
+        var normals = new Float32Array([
             0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0,  // v0-v1-v2-v3 front
             1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0,  // v0-v3-v4-v5 right
             0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0,  // v0-v5-v6-v1 up
@@ -107,7 +105,7 @@ const BarChart = () => {
         ]);
 
         // Indices of the vertices
-        let indices = new Uint8Array([
+        var indices = new Uint8Array([
             0, 1, 2, 0, 2, 3,    // front
             4, 5, 6, 4, 6, 7,    // right
             8, 9, 10, 8, 10, 11,    // up
@@ -117,44 +115,44 @@ const BarChart = () => {
         ]);
 
         // Write the vertex property to buffers (coordinates, colors and normals)
-        initArrayBuffer(gl, vertices, 3, 'a_Position');
-        initArrayBuffer(gl, colors, 3, 'a_Color');
-        initArrayBuffer(gl, normals, 3, 'a_Normal');
+        if (!initArrayBuffer(gl, 'a_Position', vertices, 3)) return -1;
+        if (!initArrayBuffer(gl, 'a_Color', colors, 3)) return -1;
+        if (!initArrayBuffer(gl, 'a_Normal', normals, 3)) return -1;
 
         // Unbind the buffer object
-        gl!.bindBuffer(gl!.ARRAY_BUFFER, null);
+        gl.bindBuffer(gl.ARRAY_BUFFER, null);
 
         // Write the indices to the buffer object
-        let indexBuffer = gl!.createBuffer();
+        var indexBuffer = gl.createBuffer();
         if (!indexBuffer) {
             console.log('Failed to create the buffer object');
             return false;
         }
-        gl!.bindBuffer(gl!.ELEMENT_ARRAY_BUFFER, indexBuffer);
-        gl!.bufferData(gl!.ELEMENT_ARRAY_BUFFER, indices, gl!.STATIC_DRAW);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
 
         return indices.length;
     }
 
-    const initArrayBuffer = (gl: any, data: any, num: number, attribute: string) => {
+    function initArrayBuffer(gl: { bindBuffer: any; ARRAY_BUFFER: any; createBuffer: any; ELEMENT_ARRAY_BUFFER?: any; bufferData: any; STATIC_DRAW: any; getAttribLocation?: any; program?: any; vertexAttribPointer?: any; FLOAT?: any; enableVertexAttribArray?: any; }, attribute: string, data: Float32Array, num: number) {
         // Create a buffer object
-        let buffer = gl!.createBuffer();
+        var buffer = gl.createBuffer();
         if (!buffer) {
             console.log('Failed to create the buffer object');
             return false;
         }
         // Write date into the buffer object
-        gl!.bindBuffer(gl!.ARRAY_BUFFER, buffer);
-        gl!.bufferData(gl!.ARRAY_BUFFER, data, gl!.STATIC_DRAW);
-        // Assign the buffer object to the attribute letiable
-        let a_attribute = gl!.getAttribLocation(gl!.program, attribute);
+        gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+        gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+        // Assign the buffer object to the attribute variable
+        var a_attribute = gl.getAttribLocation(gl.program, attribute);
         if (a_attribute < 0) {
             console.log('Failed to get the storage location of ' + attribute);
             return false;
         }
-        gl!.vertexAttribPointer(a_attribute, 3, gl!.FLOAT, false, 0, 0);
-        // Enable the assignment of the buffer object to the attribute letiable
-        gl!.enableVertexAttribArray(a_attribute);
+        gl.vertexAttribPointer(a_attribute, num, gl.FLOAT, false, 0, 0);
+        // Enable the assignment of the buffer object to the attribute variable
+        gl.enableVertexAttribArray(a_attribute);
 
         return true;
     }
