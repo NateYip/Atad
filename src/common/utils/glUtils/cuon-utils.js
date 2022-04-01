@@ -6,6 +6,13 @@
  * @param fshader a fragment shader program (string)
  * @return true, if the program object was created and successfully made current 
  */
+import WebGLUtils from './webgl-utils';
+
+function getWebGLContext(canvas) {
+  const gl = WebGLUtils.setupWebGL(canvas);
+  return gl;
+}
+
 function initShaders(gl, vshader, fshader) {
   var program = createProgram(gl, vshader, fshader);
   if (!program) {
@@ -15,8 +22,10 @@ function initShaders(gl, vshader, fshader) {
 
   gl.useProgram(program);
   gl.program = program;
-
-  return true;
+  if (!gl) {
+    return false;
+  }
+  return gl;
 }
 
 /**
@@ -93,21 +102,8 @@ function loadShader(gl, type, source) {
   return shader;
 }
 
-/** 
- * Initialize and get the rendering for WebGL
- * @param canvas <cavnas> element
- * @param opt_debug flag to initialize the context for debugging
- * @return the rendering context for WebGL
- */
-function getWebGLContext(canvas, opt_debug) {
-  // Get the rendering context for WebGL
-  var gl = WebGLUtils.setupWebGL(canvas);
-  if (!gl) return null;
 
-  // if opt_debug is explicitly false, create the context for debugging
-  if (arguments.length < 2 || opt_debug) {
-    gl = WebGLDebugUtils.makeDebugContext(gl);
-  }
-
-  return gl;
+export {
+  initShaders,
+  getWebGLContext,
 }
