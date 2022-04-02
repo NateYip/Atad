@@ -8,7 +8,11 @@ function App() {
   })
   return (
     <div className="App">
-      <BarChart/>
+      <BarChart
+        data = {
+          [6,5 ,7,12,0,5,7]
+        }
+      />
     </div>
   );
 }
