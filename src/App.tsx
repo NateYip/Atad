@@ -10,7 +10,7 @@ function App() {
     <div className="App">
       <BarChart
         data = {
-          [6,5 ,7,12,0,5,7]
+          [10,22,12,10,13,20,8]
         }
       />
     </div>
