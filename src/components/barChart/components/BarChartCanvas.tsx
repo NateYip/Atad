@@ -3,23 +3,25 @@ import React, { useEffect, } from 'react'
 import { getWebGLContext, initShaders, Matrix4, Vector3, } from '../../../common/utils/glUtils/index'
 
 interface BarChartCanvasProps {
-    charData : number[];
+    charData: number[];
 }
-const BarChartCanvas = function (props: BarChartCanvasProps){
+const BarChartCanvas = function (props: BarChartCanvasProps) {
 
     const locationOffset = 0.5;
     useEffect(() => {
         main();
     }, [props.charData]);
-    const colorOffset = 1/props.charData.length;
-
+    const colorOffset = 1 / props.charData.length;
+    let eyeX = 2.0;
+    let eyeY = 2.0;
+    let eyeZ = 2.0;
+    let drawFlag = false;
+    let firData = 0;
+    const dataCount = props.charData.length;
     const main = () => {
         console.log("in main");
-        let drawFlag = false;
-        let firData = 0;
-        const canvas = document.getElementById('barChart');
-        const dataCount = props.charData.length;
 
+        const canvas = document.getElementById('barChart');
         // Get the rendering context for WebGL
         let gl = getWebGLContext(canvas);
         if (!gl) {
@@ -43,7 +45,12 @@ const BarChartCanvas = function (props: BarChartCanvasProps){
         // Set the clear color and enable the depth test
         gl.clearColor(0, 0, 0, 0);
         gl.enable(gl.DEPTH_TEST);
-
+        // Calculate the view projection matrix
+        let modelMatrix = new Matrix4(null);
+        let viewMatrix = new Matrix4(null);
+        let scaleMatrix = new Matrix4(null);
+        let projMatrix = new Matrix4(null);
+        let mvpMatrix = new Matrix4(null);
         // Get the storage locations of uniform variables and so on
         let u_MvpMatrix = gl.getUniformLocation(gl.program, 'u_MvpMatrix');
         let u_DiffuseLight = gl.getUniformLocation(gl.program, 'u_DiffuseLight');
@@ -63,47 +70,18 @@ const BarChartCanvas = function (props: BarChartCanvasProps){
         // Set the ambient light
         gl.uniform3f(u_AmbientLight, 0.2, 0.2, 0.2);
 
-        // Calculate the view projection matrix
-        let modelMatrix = new Matrix4(null);
-        let viewMatrix = new Matrix4(null);
-        let scaleMatrix = new Matrix4(null);
-        let projMatrix = new Matrix4(null);
-        let mvpMatrix = new Matrix4(null);
-        viewMatrix.lookAt(4, 4, 8, 0, 0, 0, 0, 1, 0);
+        viewMatrix.lookAt(eyeX, eyeY, eyeZ, 0, 0, 0, 0, 1, 0);
         projMatrix.setPerspective(90, 1, 0.5, 200);//second params is canvas.width/canvas.height
+        document.addEventListener('keydown', (e) => onKeyDown(e, gl, n, u_MvpMatrix, viewMatrix, projMatrix, modelMatrix, mvpMatrix, scaleMatrix), true);
+        draw(gl, n, u_MvpMatrix, viewMatrix, projMatrix, modelMatrix, mvpMatrix, scaleMatrix);
 
-        for (let i = 0; i < dataCount; i++) {
-            if (!props.charData[i]) {
-                continue;
-            }
-            if (props.charData[i] && !drawFlag) {
-                modelMatrix.setTranslate((-3 + locationOffset * (i)), 0, 0);
-                mvpMatrix.set(projMatrix)!.multiply(viewMatrix).multiply(modelMatrix);
-                // Pass the model view projection matrix to the variable u_MvpMatrix
-                gl.uniformMatrix4fv(u_MvpMatrix, false, mvpMatrix.elements);
-                // Clear color and depth buffer
-                gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-                // Draw the cube
-                gl.drawElements(gl.TRIANGLES, n, gl.UNSIGNED_BYTE, 0);
-                drawFlag = true;
-                firData = props.charData[i];
-                continue;
-            }
-            modelMatrix.setTranslate((-3 + locationOffset * (i)), -(1 - (props.charData[i] / firData)), 0);
-            scaleMatrix.setScale(1, (props.charData[i] / firData), 1);
-            mvpMatrix.set(projMatrix)!.multiply(viewMatrix).multiply(modelMatrix).multiply(scaleMatrix);
-            changeColorBuffer(i,gl);
-            // Pass the model view projection matrix to the variable u_MvpMatrix
-            gl.uniformMatrix4fv(u_MvpMatrix, false, mvpMatrix.elements);
-            // Draw the cube
-            gl.drawElements(gl.TRIANGLES, n, gl.UNSIGNED_BYTE, 0);
-        }
+
     }
-    
-    function changeColorBuffer(n:number ,gl:any) {
+
+    function changeColorBuffer(n: number, gl: any) {
         let color = [];
-        for(let i = 0; i < 24; i++) {  
-            color.push((1 - colorOffset*n ) , 0 ,0 );
+        for (let i = 0; i < 24; i++) {
+            color.push((1 - colorOffset * n), 0, 0);
         }
         let buffer = gl.createBuffer();
         let colorBuffer = new Float32Array(color);
@@ -218,16 +196,68 @@ const BarChartCanvas = function (props: BarChartCanvasProps){
 
         return true;
     }
+    const draw = (gl: any, n: number | boolean, u_MvpMatrix: any, viewMatrix: Matrix4, projMatrix: Matrix4, modelMatrix: Matrix4, mvpMatrix: Matrix4, scaleMatrix: Matrix4) => {
+        for (let i = 0; i < dataCount; i++) {
+            if (!props.charData[i]) {
+                continue;
+            }
+            if (props.charData[i] && !drawFlag) {
+                modelMatrix.setTranslate((-3 + locationOffset * (i)), 0, 0);
+                mvpMatrix.set(projMatrix)!.multiply(viewMatrix).multiply(modelMatrix);
+                // Pass the model view projection matrix to the variable u_MvpMatrix
+                gl.uniformMatrix4fv(u_MvpMatrix, false, mvpMatrix.elements);
+                // Clear color and depth buffer
+                gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+                // Draw the cube
+                gl.drawElements(gl.TRIANGLES, n, gl.UNSIGNED_BYTE, 0);
+                drawFlag = true;
+                firData = props.charData[i];
+                continue;
+            }
+            modelMatrix.setTranslate((-3 + locationOffset * (i)), -(1 - (props.charData[i] / firData)), 0);
+            scaleMatrix.setScale(1, (props.charData[i] / firData), 1);
+            mvpMatrix.set(projMatrix)!.multiply(viewMatrix).multiply(modelMatrix).multiply(scaleMatrix);
+            changeColorBuffer(i, gl);
+            // Pass the model view projection matrix to the variable u_MvpMatrix
+            gl.uniformMatrix4fv(u_MvpMatrix, false, mvpMatrix.elements);
+            // Draw the cube
+            gl.drawElements(gl.TRIANGLES, n, gl.UNSIGNED_BYTE, 0);
+        }
+    }
+
+    const onKeyDown = (event: KeyboardEvent, gl: any, n: number | boolean, u_MvpMatrix: any, viewMatrix: Matrix4, projMatrix: Matrix4, modelMatrix: Matrix4, mvpMatrix: Matrix4, scaleMatrix: Matrix4) => {
+        switch (event.keyCode) {
+            case 39:
+                eyeX += 0.01;
+                break;
+            case 37:
+                eyeX -= 0.01;
+                break;
+            case 38:
+                eyeY += 0.01;
+                break;
+            case 40:
+                eyeY -= 0.01;
+                break;
+        }
+        draw(gl, n, u_MvpMatrix, viewMatrix, projMatrix, modelMatrix, mvpMatrix, scaleMatrix);
+    }
+
+
     return (
         <div
         >
             <canvas
-            id="barChart" 
-            width="400" 
-            height="400" >
-            Please use a browser that supports "canvas"
+                id="barChart"
+                width="400"
+                height="400" >
+                Please use a browser that supports "canvas"
             </canvas>
         </div>
     )
 }
 export default BarChartCanvas
+
+function e(e: any): (this: Window, ev: KeyboardEvent) => any {
+    throw new Error('Function not implemented.');
+}
