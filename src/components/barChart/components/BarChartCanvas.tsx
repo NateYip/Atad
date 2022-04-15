@@ -7,14 +7,14 @@ interface BarChartCanvasProps {
 }
 const BarChartCanvas = function (props: BarChartCanvasProps) {
 
-    const locationOffset = 0.5;
+    const locationOffset = 0.6;
     useEffect(() => {
         main();
     }, [props.charData]);
     const colorOffset = 1 / props.charData.length;
-    let eyeX = 2.0;
-    let eyeY = 2.0;
-    let eyeZ = 2.0;
+    let eyeX = 0.00;
+    let eyeY = 0.00;
+    let eyeZ = 3.00;
     let drawFlag = false;
     let firData = 0;
     const dataCount = props.charData.length;
@@ -81,7 +81,7 @@ const BarChartCanvas = function (props: BarChartCanvasProps) {
     function changeColorBuffer(n: number, gl: any) {
         let color = [];
         for (let i = 0; i < 24; i++) {
-            color.push((1 - colorOffset * n), 0, 0);
+            color.push((0 + colorOffset * n), (0+ colorOffset * n), (1 - colorOffset * n));
         }
         let buffer = gl.createBuffer();
         let colorBuffer = new Float32Array(color);
@@ -131,7 +131,7 @@ const BarChartCanvas = function (props: BarChartCanvasProps) {
             1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0,     // v0-v5-v6-v1 up
             1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0,     // v1-v6-v7-v2 left
             1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0,     // v7-v4-v3-v2 down
-            1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0　    // v4-v7-v6-v5 back
+            1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0      // v4-v7-v6-v5 back
         ]);
 
         // Normal
@@ -197,12 +197,16 @@ const BarChartCanvas = function (props: BarChartCanvasProps) {
         return true;
     }
     const draw = (gl: any, n: number | boolean, u_MvpMatrix: any, viewMatrix: Matrix4, projMatrix: Matrix4, modelMatrix: Matrix4, mvpMatrix: Matrix4, scaleMatrix: Matrix4) => {
+        console.log(eyeX , eyeY ,eyeZ )
+        viewMatrix.lookAt(eyeX, eyeY, eyeZ, 0, 0, 0, 0, 1, 0);
+        projMatrix.setPerspective(90, 1, 1, 200);//second params is canvas.width/canvas.height
         for (let i = 0; i < dataCount; i++) {
             if (!props.charData[i]) {
                 continue;
             }
             if (props.charData[i] && !drawFlag) {
-                modelMatrix.setTranslate((-3 + locationOffset * (i)), 0, 0);
+                changeColorBuffer(i, gl);
+                modelMatrix.setTranslate((-3 + locationOffset * (i) ), 0, 0);
                 mvpMatrix.set(projMatrix)!.multiply(viewMatrix).multiply(modelMatrix);
                 // Pass the model view projection matrix to the variable u_MvpMatrix
                 gl.uniformMatrix4fv(u_MvpMatrix, false, mvpMatrix.elements);
@@ -228,17 +232,12 @@ const BarChartCanvas = function (props: BarChartCanvasProps) {
     const onKeyDown = (event: KeyboardEvent, gl: any, n: number | boolean, u_MvpMatrix: any, viewMatrix: Matrix4, projMatrix: Matrix4, modelMatrix: Matrix4, mvpMatrix: Matrix4, scaleMatrix: Matrix4) => {
         switch (event.keyCode) {
             case 39:
-                eyeX += 0.01;
-                break;
-            case 37:
-                eyeX -= 0.01;
-                break;
-            case 38:
                 eyeY += 0.01;
                 break;
-            case 40:
+            case 37:
                 eyeY -= 0.01;
                 break;
+           
         }
         draw(gl, n, u_MvpMatrix, viewMatrix, projMatrix, modelMatrix, mvpMatrix, scaleMatrix);
     }
